@@ -4,7 +4,7 @@
 $api_key = '422128541181076';
 $secret  = '16a32a398469d4003043a75116747cde';
 
-include_once './facebook-platform/php/facebook.php';
+include_once '../facebook/php/facebook.php';
 
 $facebook = new Facebook($api_key, $secret);
 $user = $facebook->require_login();
