@@ -3,6 +3,19 @@
 	<title> Lendit </title>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
 	<script type="text/javascript" src="//www.google.com/jsapi"></script>
+	<style>
+		.viewerCanvas{
+			width: 24%;
+			height: 250px;
+			display: none;
+			float: left;
+			padding-left: 5px;
+		}
+		.separator{
+			float: left;
+			width: 100%;
+		}
+	</style>
 </head>
 	
 	<body>
@@ -10,24 +23,59 @@
 		Search Book: 
 		<input type="text" id="booksearch" maxlength="200" >
 		<div id="viewerStatus"
-         	style="padding: 5px; background-color: #eee; display: none"></div>
-    	<div id="viewerCanvas"
-         	style="width: 500px; height: 400px; display: none"></div>
+         	style="padding: 5px; background-color: #eee; display: block"></div>
+        <div id="previewContainer">
+        </div>
 	</body>
 
 
 	<script type="text/javascript">
 		$(document).ready(function(){
-			$('#booksearch').keyup(function(){
-				var bookname = $(this).val();		
-				if(bookname.length < 5){
-					showCanvas(false);
-					return;
+			
+			var parent;
+			for(var i = 0; i < 20; i++){
+				if(i % 4 == 0){
+					parent = $('<div>', {'class': 'separator'}).appendTo('#previewContainer');
 				}
-				searchBook(bookname);				
+				$('<div>', {
+					'class': 'viewerCanvas', 
+					'id': i + 'viewerCanvas'
+				}).appendTo(parent);
+				
+			}
+			//Allow you to delay
+			//http://stackoverflow.com/questions/4347993/jquery-delay-between-keyup-functions
+			var isLoading = false;
+			var isDirty = false;
+			function reloadSearch(){
+				if(!isLoading){
+			      var q = $('#booksearch').val();
+			       if (q.length >= 5) {
+			          isLoading = true;
+			           // ajax fetch the data
+			           $('#viewerStatus').html("fetching...");
+			       		searchBook(q);
+			           // enforce the delay
+			           setTimeout(function(){
+			             isLoading=false;
+			             if(isDirty){
+			               isDirty = false;
+			               reloadSearch();
+			             }
+			           }, 2000);
+			       } else {
+			       	hideCanvas();
+			       }
+			     }
+			}
+			$('#booksearch').keyup(function(){	
+				isDirty = true;
+				reloadSearch();	
+				$('#viewerStatus').html("Done fetching...");	
 			});
 
 			function searchBook(bookname){
+				hideCanvas();
 				$.ajax({
 					url: 'https://www.googleapis.com/books/v1/volumes?q=' + bookname,
 					type: 'get', 
@@ -40,45 +88,46 @@
 
 			function loadResults(results){
 				var res = results.items || [];
+				var loaded = 0;
 				for(var i = 0; i < res.length; i++){
 					var entry = res[i];
 					var id = entry.id;
 					var embeddable = entry.accessInfo.embeddable;
 					if(embeddable){
-						loadBook(id);
-						return;
+						loadBook(id, loaded++);
 					}
 				}
-				showStatus("Could not load any books");
+				if(loaded == 0)
+					$('#viewerStatus').html("No books available...");
+
 
 			}
 
-			function loadBook(id){
-				var showbookcallback = function(){showBook(id);};
+			function loadBook(id, loaded){
+				var showbookcallback = function(){showBook(id, loaded);};
 				google.load("books", "0", {"callback": showbookcallback});
 			}
 
-			function showBook(id){
-				var canvas = document.getElementById('viewerCanvas');
+			function showBook(id, loaded){
+				var canvas = document.getElementById(loaded + 'viewerCanvas');
 				viewer = new google.books.DefaultViewer(canvas);
 				viewer.load(id);
-				showCanvas(true);
-				showStatus('');
+				showCanvas(canvas);
 			}
 
 			function showCanvas(showing){
-				var canvasDiv = $('#viewerCanvas');
-				canvasDiv.css('display', showing ? 'block' : 'none');
+				//var canvasDiv = $('#viewerCanvas').css('display', showing ? 'block' : 'none');
+				$(showing).show();
 			}
 
-			function showStatus(string){
-				var statusDiv = $('#viewerStatus');
-				var showing = string != null && string.length > 0;
-				if(statusDiv.children().length > 0){
-					statusDiv.empty();
-				}
-				$('<div>', {'text': string}).css('display', showing ? 'block' : 'none').appendTo(statusDiv);
+			function hideCanvas(){
+				$('.separator').children().each(function(){
+					$(this).hide();
+				});
+			}
 
+			function clearStatus(){
+				$('#viewerStatus').empty();
 			}
 		});
 	</script>
